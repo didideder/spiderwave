@@ -8,14 +8,82 @@ import re
 import sys
 import urllib
 import urllib2
+import socket
+import errno
 
 import db_wrapper
 
-RESUME_ID = 108
+RESUME_ID = 207
+PAGE_ID = 0
+
+US_STATES = {
+        'AK': 'Alaska',
+        'AL': 'Alabama',
+        'AR': 'Arkansas',
+        'AS': 'American Samoa',
+        'AZ': 'Arizona',
+        'CA': 'California',
+        'CO': 'Colorado',
+        'CT': 'Connecticut',
+        'DC': 'District of Columbia',
+        'DE': 'Delaware',
+        'FL': 'Florida',
+        'GA': 'Georgia',
+        'GU': 'Guam',
+        'HI': 'Hawaii',
+        'IA': 'Iowa',
+        'ID': 'Idaho',
+        'IL': 'Illinois',
+        'IN': 'Indiana',
+        'KS': 'Kansas',
+        'KY': 'Kentucky',
+        'LA': 'Louisiana',
+        'MA': 'Massachusetts',
+        'MD': 'Maryland',
+        'ME': 'Maine',
+        'MI': 'Michigan',
+        'MN': 'Minnesota',
+        'MO': 'Missouri',
+        'MP': 'Northern Mariana Islands',
+        'MS': 'Mississippi',
+        'MT': 'Montana',
+        'NA': 'National',
+        'NC': 'North Carolina',
+        'ND': 'North Dakota',
+        'NE': 'Nebraska',
+        'NH': 'New Hampshire',
+        'NJ': 'New Jersey',
+        'NM': 'New Mexico',
+        'NV': 'Nevada',
+        'NY': 'New York',
+        'OH': 'Ohio',
+        'OK': 'Oklahoma',
+        'OR': 'Oregon',
+        'PA': 'Pennsylvania',
+        'PR': 'Puerto Rico',
+        'RI': 'Rhode Island',
+        'SC': 'South Carolina',
+        'SD': 'South Dakota',
+        'TN': 'Tennessee',
+        'TX': 'Texas',
+        'UT': 'Utah',
+        'VA': 'Virginia',
+        'VI': 'Virgin Islands',
+        'VT': 'Vermont',
+        'WA': 'Washington',
+        'WI': 'Wisconsin',
+        'WV': 'West Virginia',
+        'WY': 'Wyoming'
+}
 
 COUNTRIES = [
 "Internet Only",
-"GA", # Georgia - the country
+"Anguilla",
+"Saint Kitts-Nevis",
+"Antigua",
+"Aruba",
+"Dominica",
+"Grenada",
 "Montserrat",
 "Cuba",
 "Virgin Islands (US)",
@@ -28,6 +96,7 @@ COUNTRIES = [
 "Haiti",
 "Saint Vincent",
 "Afghanistan",
+"Puerto Rico",
 "Albania",
 "Algeria",
 "American Samoa",
@@ -39,6 +108,7 @@ COUNTRIES = [
 "Austria",
 "Azerbaijan",
 "Bahrain",
+"Bahamas",
 "Bangladesh",
 "Belarus",
 "Belgium",
@@ -72,7 +142,7 @@ COUNTRIES = [
 "Congo",
 "Cook Islands",
 "Costa Rica",
-"Cote D'ivoire",
+"Ivory Coast",
 "Saint Lucia",
 "Croatia",
 "Cyprus",
@@ -246,8 +316,21 @@ def get_page(url):
         return None
     return soup
 
-def get_data(url):
-    return urllib2.urlopen(url, timeout=5).read()
+def get_data(url, limit=False):
+    try:
+        temp = urllib2.urlopen(url)
+    except urllib2.HTTPError as e:
+        if e.code == 302:
+            return e.geturl()
+        else:
+            raise e
+
+    if limit:
+        data = temp.read(8192)
+        if len(data) == 8192:
+            return url
+        return data
+    return temp.read()
 
 def find_nb_page(soup):
     paging_link = soup.findAll('a', {'class':"paging"})
@@ -261,6 +344,7 @@ def find_nb_page(soup):
 def scrape_da_page(link):
 
     print "Scraping: %s" % paging_link
+
     soup = get_page(link)
     if soup is None:
         return
@@ -279,34 +363,76 @@ def scrape_da_page(link):
         stream = "http://vtuner.com/setupapp/guide/asp/"+stream[3:]
         stream = urllib.quote(stream, ":/?=&#" )
         try:
-            stream = get_data(stream)
+            stream = get_data(stream, limit=True)
+        except urllib2.URLError as e:
+            print e
+            continue
+        except urllib2.HTTPError as e:
+            print e
+            if e.code in [404, 400]:
+                continue
+        except socket.error as e:
+            if e.errno == errno.ECONNRESET:
+                print "Connection reset by peer."
+                continue
         except:
             print "No stream URL. Moving on."
-            continue
+            print name
+            print stream
+            sys.exit(0)
         stream_list = [stream]
         if "[Reference]" in stream:
             stream_list = []
             streams = stream.split('\n')
-            for s in stream:
+            for s in streams[1:]:
                 if 'Ref' in s:
-                    stream_list.append("http"+s.split('http')[1])
+                    stream_list.append("http"+s.split('http')[1].strip())
 
         location = section.findAll('td')[2].text
         country = None
 
         print "Country: %s" % location
-        if "Slovak Republic" in location:
+        if "State" in paging_link:
+            for st, state in US_STATES.iteritems():
+                if st in location:
+                    country = "United States - %s" % state
+                    location = location.replace(st, '')
+                elif state in location:
+                    country = "United States - %s" % state
+                    location = location.replace(state, '')
+            if country is None and "Internet Only" in location:
+                state = paging_link.split('State=')[1].split('&i')[0]
+                country = "United States - %s" % state
+        elif "Slovak Republic" in location:
             country = "Slovakia"
             location = location.replace("Slovak Republic", '')
+        elif "Micronesia"in location:
+            country = "Federated States of Micronesia"
+            location = location.replace("Micronesia", '')
+        elif "Brunei" in location:
+            country = "Brunei Darussalam"
+            location = location.replace("Brunei", '')
         else:
             for cnt in COUNTRIES:
                 if cnt in location:
                     country = cnt
                     location = location.replace(cnt, '')
+
+        # Some radios are misplaced in United States
+        if country is None and "State" in paging_link:
+            for cnt in COUNTRIES:
+                if cnt in location:
+                    country = cnt
+                    location = location.replace(cnt, '')
+
         if country is None:
-            print "No country found. Moving on."
-            sys.exit(0)
-            continue
+            # This happen only one time but, still.
+            if "GA" in location:
+                country = "Georgia"
+                location = location.replace("Georgia", '')
+            if country is None:
+                print "No country found. Moving on."
+                sys.exit(0)
         city = location.strip()
 
         categ = []
@@ -314,49 +440,58 @@ def scrape_da_page(link):
             categ = section.findAll('td')[3].text
             categ = re.split(', |/', categ)
 
-        quality = section.findAll('td')[4].text
-        quality = html_parser.unescape(quality)
-        quality = unicode(quality).encode('utf-8')
-
-        cnt_id = db_wrapper.insert_country(country)
+        cnt_id = db_wrapper.insert_country(country.strip())
 
         # Insert a City of a country
-        city_id = db_wrapper.insert_city(location, cnt_id)
+        city_id = db_wrapper.insert_city(location.strip(), cnt_id)
         # Insert the genre
         genres_id = []
         for cat in categ:
-            genres_id.append(db_wrapper.insert_genre(cat))
+            genres_id.append(db_wrapper.insert_genre(cat.strip()))
+
+        # We only have on information about quality, so assume it's the same for all..
+        quality = section.findAll('td')[4].text
+        quality = html_parser.unescape(quality)
+        quality = quality.replace("MP3", '')
+        quality = unicode(quality).encode('utf-8')
+        try:
+            quality = int(non_decimal.sub('', quality))
+        except ValueError:
+            quality = 0
 
         stream_id = []
         for st in stream_list:
+            print st
             try:
-                stream_id.append(db_wrapper.insert_streamurl(st))
+                stream_id.append(db_wrapper.insert_streamurl(st, quality))
             except:
-                print st
-                print stream_list
                 print '-'*80
                 print name
-                print stream
+                print stream_list
                 print country
                 print city
                 print categ
                 print quality
 
         # Finally, the whole radio
-        db_wrapper.insert_radio(name, stream_url_ids=stream_id, genre_ids=genres_id, country_id=cnt_id, city_id=city_id, homepage=url)
+        db_wrapper.insert_radio(name.strip(), stream_url_ids=stream_id, genre_ids=genres_id, country_id=cnt_id, city_id=city_id, homepage=url.strip())
 
         print '-'*80
         print name
-        print stream
+        print stream_list
         print country
         print city
         print categ
         print quality
 
 db_wrapper.connect()
+non_decimal = re.compile(r'[^\d.]+')
 
 html_parser = HTMLParser.HTMLParser()
 soup = get_page("http://vtuner.com/setupapp/guide/asp/BrowseStations/StartPage.asp?sBrowseType=Location")
+if soup is None:
+    print "Could not start."
+    sys.exit(0)
 link_countries = soup.findAll('a')
 link_url = []
 for link_country in link_countries:
@@ -365,6 +500,8 @@ for link_country in link_countries:
         continue
     url = "http://vtuner.com/setupapp/guide/asp/"+link_country['href'][3:]
     link_url.append(urllib.quote(url, ":/?=&#" ))
+
+
 
 resume = 0
 for link in link_url:
@@ -379,10 +516,26 @@ for link in link_url:
             raise Exception
     except:
         print link
-    # We need to find how many pages are there.
-    nb_page = find_nb_page(soup)
-    for page in range(1, nb_page+1):
-        paging_link = link+"&iCurrPage=%d" % page
+
+    do_scrape = True
+    nb_page = 1
+    max_page = 2
+    if PAGE_ID != 0:
+        nb_page = PAGE_ID
+        # So we don't fell here again
+        PAGE_ID = 0
+        # This is seriously broken and ugly.
+        # We assume there will be a next page, but maybe there won't be.
+        # Since it's only for a resume function, that's not too bad.
+        max_page = nb_page + 1
+
+    while do_scrape:
+        paging_link = link+"&iCurrPage=%d" % nb_page
+        if nb_page > max_page:
+            do_scrape = False
+            continue
         scrape_da_page(paging_link)
+        max_page = find_nb_page(get_page(paging_link))
+        nb_page += 1
 
 db_wrapper.disconnect()

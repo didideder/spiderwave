@@ -66,7 +66,7 @@ def insert_genre(name):
     cur.execute('SELECT * FROM genre WHERE name="{gn}"'.format(gn=name))
     return cur.fetchone()[0]
 
-def insert_streamurl(url):
+def insert_streamurl(url, bitrate):
     global CON
     cur = CON.cursor()
 
@@ -74,7 +74,7 @@ def insert_streamurl(url):
     link = cur.fetchone()
     if link:
         return link[0]
-    cur.execute('INSERT INTO stream_url (url) VALUES ("{a}")'.format(a=url))
+    cur.execute('INSERT INTO stream_url (url, bitrate) VALUES ("{a}", {b})'.format(a=url, b=bitrate))
     CON.commit()
     # Then grab the ID and return that.
     cur.execute('SELECT * FROM stream_url WHERE url="{a}"'.format(a=url))
