@@ -29,8 +29,8 @@ CREATE TABLE joingenre( id INTEGER PRIMARY KEY AUTOINCREMENT,
                         FOREIGN KEY(radio_id) REFERENCES radio(id),
                         FOREIGN KEY(genre_id) REFERENCES genre(id) );
 
-CREATE TABLE joinurl( id INTEGER PRIMARY KEY AUTOINCREMENT,
-                      radio_id INTEGER,
-                      stream_url_id INTEGER,
-                      FOREIGN KEY(radio_id) REFERENCES radio(id),
-                      FOREIGN KEY(stream_url_id) REFERENCES stream_url(id) );
+CREATE TABLE joinstreamurl( id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            radio_id INTEGER,
+                            stream_url_id INTEGER,
+                            FOREIGN KEY(radio_id) REFERENCES radio(id),
+                            FOREIGN KEY(stream_url_id) REFERENCES stream_url(id) );
