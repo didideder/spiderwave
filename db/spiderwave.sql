@@ -4,7 +4,8 @@ CREATE TABLE genre( id INTEGER PRIMARY KEY AUTOINCREMENT,
 CREATE TABLE stream_url( id INTEGER PRIMARY KEY AUTOINCREMENT,
                          url TEXT UNIQUE,
                          bitrate INTEGER,
-                         format TEXT );
+                         format TEXT,
+                         valid INTEGER );
 
 CREATE TABLE country( id INTEGER PRIMARY KEY AUTOINCREMENT,
                       name TEXT UNIQUE );
@@ -19,7 +20,6 @@ CREATE TABLE radio( id INTEGER PRIMARY KEY AUTOINCREMENT,
                     logo BLOB,
                     homepage TEXT,
                     city_id INTEGER,
-                    valid INTEGER,
                     webonly INTEGER,
                     FOREIGN KEY(city_id) REFERENCES city(id) );
 
