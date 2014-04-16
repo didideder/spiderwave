@@ -18,13 +18,11 @@ CREATE TABLE radio( id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT,
                     logo BLOB,
                     homepage TEXT,
-                    country_id INTEGER,
                     city_id INTEGER,
                     valid INTEGER,
                     webonly INTEGER,
-                    FOREIGN KEY(country_id) REFERENCES country(id),
                     FOREIGN KEY(city_id) REFERENCES city(id) );
-                                             
+
 CREATE TABLE joingenre( id INTEGER PRIMARY KEY AUTOINCREMENT,
                         radio_id INTEGER,
                         genre_id INTEGER,
@@ -36,4 +34,3 @@ CREATE TABLE joinurl( id INTEGER PRIMARY KEY AUTOINCREMENT,
                       stream_url_id INTEGER,
                       FOREIGN KEY(radio_id) REFERENCES radio(id),
                       FOREIGN KEY(stream_url_id) REFERENCES stream_url(id) );
-
