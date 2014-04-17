@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 
 from BeautifulSoup import BeautifulSoup
+import errno
 import HTMLParser
 import re
+import socket
+import sys
 import urllib
 import urllib2
-import socket
-import errno
 
 import db_wrapper
 
