@@ -338,7 +338,7 @@ def get_data(url, limit=False):
             if "[Reference]" in data:
                 return data
             # Other than that, we don't take care of it here.
-            return data.geturl()
+            return temp.geturl()
         return data
     return temp.read()
 
