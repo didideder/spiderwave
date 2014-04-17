@@ -392,6 +392,8 @@ def scrape_da_page(link):
             print name
             print stream
             sys.exit(0)
+        if not stream:
+            continue
         stream_list = [stream]
         if "[Reference]" in stream:
             stream_list = []
