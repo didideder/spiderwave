@@ -339,7 +339,7 @@ def get_data(url, limit=False):
                 return data
             # Other than that, we don't take care of it here.
             return temp.geturl()
-        elif '<asx version="3.0"' in data.lower():
+        elif '<asxversion="3.0"' in data.lower().replace(' ', ''):
             return url
         return data
     return temp.read()
