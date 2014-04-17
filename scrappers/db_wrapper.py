@@ -155,7 +155,8 @@ def add_radio(name, city, country, stream_urls, genres, logo=None,
     genre_ids = []
     #Get genres ids
     for genre in genres:
-        genre_ids.append(insert_genre(genre))
+        if genre:
+            genre_ids.append(insert_genre(genre))
 
     #Get radio id
     radio_id = insert_radio(name, city_id, homepage, logo, web_only)
