@@ -325,8 +325,19 @@ def get_data(url, limit=False):
 
     if limit:
         data = temp.read(8192)
+        # We have the real stream, so it's only data here.
+        # Return the URL
         if len(data) == 8192:
             return url
+        # If there is multiple line in the data we just got, we should return
+        # the URL, we probably got a metadata file containing the stream URL.
+        if data.count('\n') > 2:
+            # If it's an ASF containing only multiple stream for the same
+            # radio, it will be handled.
+            if "[Reference]" in data:
+                return data
+            # Other than that, we don't take care of it here.
+            return data.geturl()
         return data
     return temp.read()
 
