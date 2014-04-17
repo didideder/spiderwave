@@ -2,12 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from BeautifulSoup import BeautifulSoup
-import subprocess
-import re
-import sys
-import urllib2
-
 import db_wrapper
+import scrape_mike as ssm
 
 COUNTRIES = [
 "Internet Only",
@@ -235,15 +231,9 @@ COUNTRIES = [
 "Zimbabwe"
 ]
 
-def get_page( url ):
-    opener = urllib2.build_opener()
-    data = opener.open(url).read()
-    soup = BeautifulSoup(data)
-    return soup
-
 db_wrapper.connect()
-non_decimal = re.compile(r'[^\d.]+')
-soup = get_page("http://www.listenlive.eu/index.html")
+
+soup = ssm.get_page("http://www.listenlive.eu/index.html")
 countries = soup.find("table", {"id" : "thetable"})
 
 for row in countries.findAll('tr'):
@@ -259,71 +249,10 @@ for row in countries.findAll('tr'):
         print "Country (%s) not found in list. Moving on." % country_name
         sys.exit(0)
 
-    cnt_id = db_wrapper.insert_country(country_name.strip())
     country = "http://www.listenlive.eu/"+link['href']
-
-    soup = get_page(country)
+    soup = ssm.get_page(country)
     radios = soup.find("table", {"id" : "thetable3"})
-    for row in radios.findAll('tr'):
-        name_link = row.findAll('td')[0].findAll('a')
-
-        location = row.findAll('td')[1].text
-        if "Location" in location:
-            continue
-        if len(name_link) > 0:
-            name = name_link[0].text
-            name = name.replace('"','')
-            url = unicode(name_link[0]['href']).encode('utf-8')
-        if name == "":
-            name = row.findAll('td')[0].findAll('b')[1].text
-            if name == "":
-                print "Name is empty - %s" % country
-                sys.exit(0)
-
-        stream_href_list = row.findAll('td')[3].findAll('a')
-        streams = []
-        for stream_href in stream_href_list:
-            stream = stream_href["href"]
-            quality = stream_href.text
-            try:
-                quality = int(non_decimal.sub('', quality))
-            except ValueError:
-                quality = 0
-            if "javascript:" in stream:
-                open_js = stream[stream.find("(")+1:stream.find(")")]
-                open_arg = open_js[open_js.find("(")+1:open_js.find(")")]
-                args = open_arg.split(',')
-                stream = args[0].strip('\'')
-            streams.append([stream, quality])
-
-        categ = []
-        if len(row.findAll('td')) > 4:
-            categ = row.findAll('td')[4].text
-            categ.strip()
-            categ = categ.replace('"','')
-            categ = re.split(', |/', categ)
-
-        print '-'*80
-        print name
-        print url
-        print location
-        print country_name
-        print streams
-        print categ
-
-        # Insert a City of a country
-        city_id = db_wrapper.insert_city(location.strip(), cnt_id)
-        # Insert the genre
-        genres_id = []
-        for cat in categ:
-            genres_id.append(db_wrapper.insert_genre(cat.strip()))
-
-        st_ids = []
-        for st in streams:
-            st_ids.append(db_wrapper.insert_streamurl(st[0].strip(), st[1]))
-
-        # Finally, the whole radio
-        db_wrapper.insert_radio(name.strip(), stream_url_ids=st_ids, genre_ids=genres_id, country_id=cnt_id, city_id=city_id, homepage=url.strip())
+    ssm.scrape(radios, name_td_id=0, location_td_id=1, stream_td_id=3, categ_td_id=4, country=country_name.strip())
 
 
-# db_wrapper.disconnect()
+db_wrapper.disconnect()

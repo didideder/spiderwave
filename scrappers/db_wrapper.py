@@ -19,8 +19,6 @@ def disconnect():
 def insert_country(name):
     cur = CON.cursor()
 
-    name = unicode(name).encode('utf-8')
-
     cur.execute('SELECT * FROM country WHERE name="{cn}"'.format(cn=name))
     country = cur.fetchone()
     if country:
@@ -33,8 +31,6 @@ def insert_country(name):
 
 def insert_city(name, country_id):
     cur = CON.cursor()
-
-    name = unicode(name).encode('utf-8')
 
     cur.execute('SELECT * FROM city WHERE name="{cn}" and \
                 country_id="{cnt}"'.format(cn=name, cnt=country_id))
@@ -67,7 +63,11 @@ def insert_streamurl(url, bitrate=0, codec=0, valid=0):
 def insert_genre(name):
     cur = CON.cursor()
 
-    name = unicode(name).encode('utf-8')
+    name = BeautifulSoup(unicode(name.strip()).encode('utf-8'), convertEntities=BeautifulSoup.HTML_ENTITIES).contents[0]
+    try:
+        name = unicode(name).encode('utf-8')
+    except UnicodeDecodeError:
+        name = unicode(name.decode('utf-8')).encode('utf-8')
 
     cur.execute('SELECT * FROM genre WHERE name="{g}"'.format(g=name))
     genre = cur.fetchone()
@@ -133,8 +133,22 @@ def add_radio(name, city, country, stream_urls, genres, logo=None,
 
     # Sanitize everything
     name = BeautifulSoup(unicode(name.strip()).encode('utf-8'), convertEntities=BeautifulSoup.HTML_ENTITIES).contents[0]
+    try:
+        name = unicode(name).encode('utf-8')
+    except UnicodeDecodeError:
+        name = unicode(name.decode('utf-8')).encode('utf-8')
+
     city = BeautifulSoup(unicode(city.strip()).encode('utf-8'), convertEntities=BeautifulSoup.HTML_ENTITIES).contents[0]
+    try:
+        city = unicode(city).encode('utf-8')
+    except UnicodeDecodeError:
+        city = unicode(city.decode('utf-8')).encode('utf-8')
+
     country = BeautifulSoup(unicode(country.strip()).encode('utf-8'), convertEntities=BeautifulSoup.HTML_ENTITIES).contents[0]
+    try:
+        country = unicode(country).encode('utf-8')
+    except UnicodeDecodeError:
+        city = unicode(country.decode('utf-8')).encode('utf-8')
 
     #Get country id
     country_id = insert_country(country)
