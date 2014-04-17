@@ -3,9 +3,7 @@
 
 from BeautifulSoup import BeautifulSoup
 import HTMLParser
-import subprocess
 import re
-import sys
 import urllib
 import urllib2
 import socket
@@ -13,7 +11,7 @@ import errno
 
 import db_wrapper
 
-RESUME_ID = 207
+RESUME_ID = 0
 PAGE_ID = 0
 
 US_STATES = {
@@ -434,20 +432,14 @@ def scrape_da_page(link):
                 print "No country found. Moving on."
                 sys.exit(0)
         city = location.strip()
+        country = country.strip()
+        if city == "":
+            city = country
 
         categ = []
         if len(section.findAll('td')) > 3:
             categ = section.findAll('td')[3].text
             categ = re.split(', |/', categ)
-
-        cnt_id = db_wrapper.insert_country(country.strip())
-
-        # Insert a City of a country
-        city_id = db_wrapper.insert_city(location.strip(), cnt_id)
-        # Insert the genre
-        genres_id = []
-        for cat in categ:
-            genres_id.append(db_wrapper.insert_genre(cat.strip()))
 
         # We only have on information about quality, so assume it's the same for all..
         quality = section.findAll('td')[4].text
@@ -459,22 +451,12 @@ def scrape_da_page(link):
         except ValueError:
             quality = 0
 
-        stream_id = []
+        streams = []
         for st in stream_list:
-            print st
-            try:
-                stream_id.append(db_wrapper.insert_streamurl(st, quality))
-            except:
-                print '-'*80
-                print name
-                print stream_list
-                print country
-                print city
-                print categ
-                print quality
+            streams.append([st, quality])
 
         # Finally, the whole radio
-        db_wrapper.insert_radio(name.strip(), stream_url_ids=stream_id, genre_ids=genres_id, country_id=cnt_id, city_id=city_id, homepage=url.strip())
+        db_wrapper.add_radio(name.strip(), city, country, streams, categ, homepage=url.strip())
 
         print '-'*80
         print name
@@ -483,6 +465,7 @@ def scrape_da_page(link):
         print city
         print categ
         print quality
+
 
 db_wrapper.connect()
 non_decimal = re.compile(r'[^\d.]+')
@@ -500,8 +483,6 @@ for link_country in link_countries:
         continue
     url = "http://vtuner.com/setupapp/guide/asp/"+link_country['href'][3:]
     link_url.append(urllib.quote(url, ":/?=&#" ))
-
-
 
 resume = 0
 for link in link_url:
@@ -526,7 +507,6 @@ for link in link_url:
         PAGE_ID = 0
         # This is seriously broken and ugly.
         # We assume there will be a next page, but maybe there won't be.
-        # Since it's only for a resume function, that's not too bad.
         max_page = nb_page + 1
 
     while do_scrape:
